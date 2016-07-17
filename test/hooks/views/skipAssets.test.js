@@ -4,6 +4,7 @@
 
 var path = require('path');
 var util = require('util');
+var _ = require('lodash');
 var request = require('request');
 var MProcess = require('machinepack-process');
 var MFilesystem = require('machinepack-fs');
@@ -55,22 +56,27 @@ describe('skipAssets', function() {
     describe('running `sails lift', function (){
       testSpawningSailsLiftChildProcessInCwd({
         pathToSailsCLI: pathToSailsCLI,
-        liftCliArgs: [],
+        liftCliArgs: ['--port=1331'],
         httpRequestInstructions: {
           method: 'GET',
-          uri: 'http://localhost:1337',
+          uri: 'http://localhost:1331',
         },
         fnWithAdditionalTests: function (){
-          it('should return a JavaScript file when requesting `http://localhost:1337/js/dependencies/sails.io.js`', function (done){
+          it('should return a JavaScript file when requesting `http://localhost:1331/js/dependencies/sails.io.js`', function (done){
             request({
               method: 'GET',
-              uri: 'http://localhost:1337/js/dependencies/sails.io.js',
+              uri: 'http://localhost:1331/js/dependencies/sails.io.js',
             }, function(err, response, body) {
               if (err) { return done(err); }
-              // console.log('-----\n',response.headers,'\n----------');
-              if (response.headers['content-type'].match(/text\/html/)) {
-                return done(new Error('Expected javascript content-type header when requesting an asset. `skipAssets` seems to be failing silently!'));
+              try {
+                if (!_.isString(response.headers['content-type'])) {
+                  return done(new Error('Expected a response content-type header when requesting an asset. `skipAssets` seems to be failing silently!'));
+                }
+                if (!response.headers['content-type'].match(/application\/javascript/)) {
+                  return done(new Error('Expected javascript response content-type header when requesting an asset (but got `'+response.headers['content-type']+'`). `skipAssets` seems to be failing silently!'));
+                }
               }
+              catch (e) { return done(e); }
               return done();
             });
           });
